@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BVC Transit Dashboard</title>
+    
+    <!-- Import Poppins Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ========================================
+           CSS RESET & BASE
+           ======================================== */
+        :root {
+            --ct-red: #ef3e42;
+            --ct-blue: #0077c8;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.85);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-primary);
+            /* 45 Degree Gradient Orange to Pink */
+            background: linear-gradient(45deg, #ffa74f 0%, #ff4b6b 100%);
+            background-size: 100% 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ========================================
+           LAYOUT & CONTAINERS
+           ======================================== */
+        .dashboard-container {
+            width: 1720px;
+            height: 880px;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 40px; 
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .header-title h1 { 
+            font-size: 56px; 
+            font-weight: 700; 
+            letter-spacing: -1px; 
+            margin-bottom: 0; 
+            line-height: 1; 
+        }
+        
+        .header-title h2 { 
+            font-size: 24px; 
+            font-weight: 500; 
+            color: var(--text-secondary); 
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 20px; 
+        }
+
+        .time-display { text-align: right; }
+        
+        .current-time { 
+            font-size: 48px; 
+            font-weight: 600; 
+            line-height: 1; 
+            margin-top: 4px; 
+        }
+        
+        .station-badge { 
+            background: transparent; 
+            padding: 0; 
+            font-size: 18px; 
+            font-weight: 500;
+            margin-top: 10px;
+            display: inline-block;
+            opacity: 0.9;
+        }
+
+        /* ========================================
+           TRANSIT COLUMNS
+           ======================================== */
+        .transit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .platform-column {
+            display: flex;
+            flex-direction: column;
+            gap: 30px; 
+        }
+
+        #westbound-container, 
+        #eastbound-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .platform-header {
+            font-size: 28px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* ========================================
+           TRAIN CARDS
+           ======================================== */
+        .train-card {
+            background: rgba(255, 255, 255, 0.15); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 25px 35px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .train-card.leaving-soon {
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .line-indicator {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+        }
+        .line-red { background: var(--ct-red); }
+        .line-blue { background: var(--ct-blue); }
+
+        .train-info { display: flex; flex-direction: column; gap: 5px; margin-left: 20px;}
+        
+        .destination { 
+            font-size: 36px; 
+            font-weight: 700; 
+            line-height: 1.1; 
+            letter-spacing: -0.5px;
+        }
+        
+        .train-meta { display: flex; gap: 15px; font-size: 18px; color: var(--text-secondary); font-weight: 500;}
+
+        .train-time { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+        
+        .minutes { font-size: 56px; font-weight: 700; line-height: 1; }
+        .minutes span { font-size: 20px; font-weight: 400; margin-left: 4px; }
+        
+        .status { 
+            font-size: 16px; 
+            margin-top: 5px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            font-weight: 700;
+            color: #ffffff;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Pulse Animation for < 2 min */
+        .pulse-text {
+            color: #fff;
+            animation: pulse-urgent 1.5s infinite;
+        }
+
+        @keyframes pulse-urgent {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-title">
+                <h1 id="station-name">City Hall / Bow Valley College</h1>
+                <h2>Live Departures</h2>
+            </div>
+            <div class="time-display">
+                <div class="current-time" id="clock">00:00</div>
+                <div class="station-badge">Platforms 1 & 2</div>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="transit-grid">
+            
+            <!-- Column 1: Westbound -->
+            <div class="platform-column">
+                <div class="platform-header">
+                    <span>⬅️ Westbound (Tuscany / 69 St)</span>
+                </div>
+                <div id="westbound-container">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+
+            <!-- Column 2: Eastbound -->
+            <div class="platform-column">
+                <div class="platform-header">
+                    <span>Eastbound (Saddletowne / Somerset) ➡️</span>
+                </div>
+                <div id="eastbound-container">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- UTILITY SCRIPTS -->
+    <script>
+        // Basic Clock (Runs independently of Transit Engine)
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Rendering Function (Used by Transit Engine)
+        // Made global (window.) so module scripts can see it
+        window.createTrainCard = function(train, index) {
+            const lineColorClass = train.line === 'red' ? 'line-red' : 'line-blue';
+            const urgencyClass = train.minutes <= 2 ? 'leaving-soon' : '';
+            const pulseClass = train.minutes <= 2 ? 'pulse-text' : '';
+            const statusText = train.minutes === 0 ? "NOW" : `${train.minutes}<span>min</span>`;
+
+            return `
+                <div class="train-card ${urgencyClass} fade-in" style="animation-delay: ${index * 100}ms">
+                    <div class="line-indicator ${lineColorClass}"></div>
+                    <div class="train-info">
+                        <div class="destination">${train.destination}</div>
+                        <div class="train-meta">
+                            <span>${train.line === 'red' ? '201 Red Line' : '202 Blue Line'}</span>
+                            <span>•</span>
+                            <span>4 Cars</span>
+                        </div>
+                    </div>
+                    <div class="train-time">
+                        <div class="minutes ${pulseClass}">${statusText}</div>
+                        <div class="status">${train.status}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.renderColumn = function(containerId, trains) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = trains.map((train, index) => window.createTrainCard(train, index)).join('');
+        }
+    </script>
+
+    <!-- REAL-TIME TRANSIT ENGINE -->
+    <!-- Load protobuf.js first -->
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    
+    <!-- Load our modules from the /scripts folder -->
+    <script src="scripts/proto-loader.js"></script>
+    <script src="scripts/gtfs-rt-api.js"></script>
+    <script src="scripts/transit-engine.js"></script>
+    
+    <script>
+        // Start the engine once all scripts are loaded
+        window.addEventListener('load', () => {
+            console.log("Starting Transit Engine...");
+            if (typeof startTransitDashboard === 'function') {
+                startTransitDashboard();
+            } else {
+                console.error("startTransitDashboard function missing. Check script loading order.");
+            }
+        });
+    </script>
+</body>
+</html>
