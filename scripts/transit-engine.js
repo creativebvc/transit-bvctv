@@ -49,11 +49,9 @@ function getDestinationName(lineColor, direction) {
 async function updateAlertBanner() {
     const banner = document.getElementById('alert-banner');
     const textSpan = document.getElementById('alert-text');
-    
-    // If elements are missing (e.g. during debugging), skip gracefully
     if (!banner || !textSpan) return;
 
-    // Fetch Alerts using the API
+    // Fetch Alerts
     const feed = await fetchGTFSRT(URL_ALERTS);
     
     let activeAlertMsg = "";
@@ -68,9 +66,7 @@ async function updateAlertBanner() {
 
         if (alertEntity && alertEntity.alert.headerText) {
             // Get the English text (usually index 0)
-            if (alertEntity.alert.headerText.translation && alertEntity.alert.headerText.translation.length > 0) {
-                 activeAlertMsg = alertEntity.alert.headerText.translation[0].text;
-            }
+            activeAlertMsg = alertEntity.alert.headerText.translation[0].text;
         }
     }
 
@@ -79,8 +75,6 @@ async function updateAlertBanner() {
         textSpan.innerText = activeAlertMsg;
         textSpan.classList.add('scrolling');
         banner.classList.remove('hidden');
-        // Force display in case inline styles hid it
-        banner.style.display = 'flex'; 
     } else {
         banner.classList.add('hidden');
         textSpan.classList.remove('scrolling');
@@ -123,14 +117,12 @@ async function buildTrainList() {
 
             if (!arrival || !arrival.time) continue;
 
-            // 2. Safe Timestamp Conversion (FIXED)
-            // We do NOT use protobuf.util.Long.isLong() to avoid crashes.
+            // 2. Safe Timestamp Conversion (Handle Protobuf Longs)
             let timeVal = arrival.time;
-            
-            if (timeVal && typeof timeVal.toNumber === 'function') {
+            if (protobuf.util.Long.isLong(timeVal)) {
                 timeVal = timeVal.toNumber();
-            } else if (timeVal && typeof timeVal === 'object' && 'low' in timeVal) {
-                 timeVal = timeVal.low; // Fallback for raw objects
+            } else if (typeof timeVal === 'object' && timeVal.low) {
+                 timeVal = timeVal.low;
             }
 
             const minutes = unixToMinutes(timeVal);
@@ -183,6 +175,8 @@ async function buildTrainList() {
 async function startTransitDashboard() {
     console.log("🚀 Dashboard Engine Started");
     
+    let failureCount = 0; // Track consecutive failures
+
     async function update() {
         // Toggle Heartbeat (Yellow = Loading)
         const liveDot = document.getElementById('live-indicator');
@@ -192,11 +186,13 @@ async function startTransitDashboard() {
             // 1. Get Trains
             const { westTrains, eastTrains } = await buildTrainList();
             
-            // 2. Check Alerts (Wrapped in try/catch internally so it won't crash the board)
+            // 2. Check Alerts
             await updateAlertBanner();
 
             // 3. Empty State Check (Late Night)
+            const grid = document.querySelector('.transit-grid');
             if (westTrains.length === 0 && eastTrains.length === 0) {
+                 // You could show a "Service Closed" message here
                  console.log("No trains found (Service Closed or No Data)");
             }
 
@@ -204,17 +200,29 @@ async function startTransitDashboard() {
             if (typeof window.renderColumn === "function") {
                 window.renderColumn("westbound-container", westTrains);
                 window.renderColumn("eastbound-container", eastTrains);
-            } else {
-                console.warn("renderColumn function not found in global scope.");
             }
 
-            // Success: Turn Heartbeat Green
+            // Success: Turn Heartbeat Green and Reset Failures
             if (liveDot) liveDot.classList.remove('stale');
+            failureCount = 0; 
             console.log(`Updated: ${westTrains.length} West, ${eastTrains.length} East`);
 
         } catch (e) {
             console.error("Transit Engine Error:", e);
+            
             // Leave Heartbeat Yellow/Orange to indicate stale data
+            failureCount++;
+
+            // SAFETY: If we fail 3 times (approx 90 seconds), clear the board
+            // so we don't show old/incorrect times to students.
+            if (failureCount >= 3) {
+                const safeMessage = `<div style="font-size: 20px; opacity: 0.7; padding: 20px;">Updating connection...</div>`;
+                const westCont = document.getElementById('westbound-container');
+                const eastCont = document.getElementById('eastbound-container');
+                
+                if (westCont) westCont.innerHTML = safeMessage;
+                if (eastCont) eastCont.innerHTML = safeMessage;
+            }
         }
     }
 
