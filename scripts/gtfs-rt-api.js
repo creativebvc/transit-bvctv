@@ -6,12 +6,12 @@ const URL_ALERTS = "https://data.calgary.ca/download/jhgn-ynqj/application%2Foct
 // ==========================================
 // PROXY CONFIGURATION
 // ==========================================
+// IN gtfs-rt-api.js
 const PROXIES = [
-    "https://corsproxy.io/?",                  // Primary: Usually fastest
-    "https://api.allorigins.win/raw?url=",     // Backup 1: Reliable but slower
-    "https://thingproxy.freeboard.io/fetch/"   // Backup 2: Last resort
+    "https://api.allorigins.win/raw?url=",     // #1 
+    "https://corsproxy.io/?",                  // #2
+    "https://thingproxy.freeboard.io/fetch/"   // #3
 ];
-
 async function fetchWithFailover(targetUrl) {
     for (const proxyBase of PROXIES) {
         try {
