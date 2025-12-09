@@ -3,10 +3,7 @@
 // ==========================================
 
 // Verified Stop IDs for City Hall / Bow Valley College (Free Fare Zone)
-// Westbound (Towards Tuscany / 69 St / Downtown West)
 const STOP_CITY_HALL_WEST = "6822"; 
-
-// Eastbound (Towards Somerset / Saddletowne / NE / South)
 const STOP_CITY_HALL_EAST = "6831"; 
 
 const ROUTE_RED = "201";
@@ -25,21 +22,15 @@ function getSafeLong(val) {
 }
 
 function calculateMinutes(eta, referenceTime) {
-    // We compare the train's ETA against the City's Server Time (referenceTime)
-    // NOT the user's local computer time. This fixes "Ghost Trains".
     const diff = eta - referenceTime;
-    
-    // FILTER: If train departed more than 60 seconds ago relative to server time
-    if (diff < -60) return -1; 
-    
-    // Return minutes (clamped to 0)
+    if (diff < -90) return -1; 
     return Math.max(0, Math.round(diff / 60));
 }
 
 function mapRouteColor(routeId) {
     if (routeId.includes(ROUTE_RED)) return "red";
     if (routeId.includes(ROUTE_BLUE)) return "blue";
-    return "blue"; // Default fallback
+    return "blue"; 
 }
 
 function getDestinationName(lineColor, direction) {
@@ -51,13 +42,13 @@ function getDestinationName(lineColor, direction) {
 }
 
 // ==========================================
-// ALERT LOGIC
+// ALERT LOGIC (UPDATED FOR ALWAYS-ON FOOTER)
 // ==========================================
 
 async function updateAlertBanner() {
-    const banner = document.getElementById('alert-banner');
-    const textSpan = document.getElementById('alert-text');
-    if (!banner || !textSpan) return;
+    const footer = document.getElementById('service-footer');
+    const textSpan = document.getElementById('service-text');
+    if (!footer || !textSpan) return;
 
     try {
         const feed = await fetchGTFSRT(URL_ALERTS);
@@ -75,16 +66,21 @@ async function updateAlertBanner() {
             }
         }
 
+        // TOGGLE STATES
         if (activeAlertMsg) {
-            textSpan.innerText = activeAlertMsg;
-            textSpan.classList.add('scrolling');
-            banner.classList.remove('hidden');
+            // 🚨 ALERT STATE
+            textSpan.innerText = "⚠️ SERVICE ALERT: " + activeAlertMsg;
+            footer.className = 'status-alert'; // Triggers Red + Scroll
         } else {
-            banner.classList.add('hidden');
-            textSpan.classList.remove('scrolling');
+            // ✅ NORMAL STATE
+            textSpan.innerText = "✅ Normal Service: All trains running on schedule.";
+            footer.className = 'status-ok'; // Triggers Green + Static
         }
     } catch(e) {
         console.warn("Alert fetch failed", e);
+        // Fallback to normal if fetch fails to avoid scaring people
+        textSpan.innerText = "✅ Normal Service"; 
+        footer.className = 'status-ok';
     }
 }
 
@@ -100,23 +96,16 @@ async function buildTrainList() {
         return { westTrains: [], eastTrains: [] };
     }
 
-    // 1. Establish "Server Time" to ignore local clock skew
-    let serverTime = Math.floor(Date.now() / 1000); // Fallback
+    let serverTime = Math.floor(Date.now() / 1000); 
     if (feed.header && feed.header.timestamp) {
         const feedTs = getSafeLong(feed.header.timestamp);
-        if (feedTs > 0) {
-            serverTime = feedTs;
-            console.log(`🕒 Synced to City Server Time: ${new Date(serverTime * 1000).toLocaleTimeString()}`);
-        }
+        if (feedTs > 0) serverTime = feedTs;
     }
 
     const westTrains = [];
     const eastTrains = [];
     const processedTrips = new Set();
     
-    // DEBUG: Track what we see to help troubleshooting
-    let debugStopCounts = {}; 
-
     for (const entity of feed.entity) {
         if (!entity.tripUpdate || !entity.tripUpdate.stopTimeUpdate) continue;
 
@@ -126,31 +115,20 @@ async function buildTrainList() {
         if (processedTrips.has(tripId)) continue;
 
         const routeId = trip.trip.routeId || "";
-        // Strict Filter: Only Red/Blue lines
         if (!routeId.includes(ROUTE_RED) && !routeId.includes(ROUTE_BLUE)) continue;
 
         const lineColor = mapRouteColor(routeId);
 
         for (const stopUpdate of trip.stopTimeUpdate) {
             const stopId = stopUpdate.stopId;
-            
-            // LOGGING: Count how often we see these stops (for debugging)
-            if (stopId === STOP_CITY_HALL_WEST || stopId === STOP_CITY_HALL_EAST) {
-                debugStopCounts[stopId] = (debugStopCounts[stopId] || 0) + 1;
-            }
-
             const arrival = stopUpdate.arrival || stopUpdate.departure; 
             if (!arrival || !arrival.time) continue;
 
             const timeVal = getSafeLong(arrival.time);
-            
-            // Use Server-Relative Calculation
             const minutes = calculateMinutes(timeVal, serverTime);
 
-            // Filter Invalid Times
             if (minutes === -1 || minutes > 60) continue;
 
-            // --- WESTBOUND ---
             if (stopId === STOP_CITY_HALL_WEST) {
                 westTrains.push({
                     destination: getDestinationName(lineColor, 'WEST'),
@@ -163,7 +141,6 @@ async function buildTrainList() {
                 break; 
             }
 
-            // --- EASTBOUND ---
             if (stopId === STOP_CITY_HALL_EAST) {
                 eastTrains.push({
                     destination: getDestinationName(lineColor, 'EAST'),
@@ -178,13 +155,6 @@ async function buildTrainList() {
         }
     }
 
-    console.log("🔍 Debug Scan:", { 
-        westFound: westTrains.length, 
-        eastFound: eastTrains.length,
-        stopsSeen: debugStopCounts
-    });
-
-    // Sort by time
     westTrains.sort((a, b) => a.minutes - b.minutes);
     eastTrains.sort((a, b) => a.minutes - b.minutes);
 
@@ -199,7 +169,7 @@ async function buildTrainList() {
 // ==========================================
 
 async function startTransitDashboard() {
-    console.log("🚀 Dashboard Engine Started (Clock-Proof Mode)");
+    console.log("🚀 CLOCK-PROOF ENGINE v4 STARTED");
     
     let failureCount = 0;
 
@@ -209,25 +179,18 @@ async function startTransitDashboard() {
 
         try {
             const { westTrains, eastTrains } = await buildTrainList();
-            await updateAlertBanner();
-
-            // Render Logic
+            
+            // Render
             const westCont = document.getElementById('westbound-container');
             const eastCont = document.getElementById('eastbound-container');
-            
-            if (westTrains.length === 0 && eastTrains.length === 0) {
-                 const msg = "<div style='opacity:0.6; padding:20px; font-size: 18px; text-align:center'>No trains scheduled next 60m</div>";
-                 if (westCont) westCont.innerHTML = msg;
-                 if (eastCont) eastCont.innerHTML = msg;
-            } else {
-                if (typeof window.renderColumn === "function") {
-                    if (westTrains.length > 0) window.renderColumn("westbound-container", westTrains);
-                    else if (westCont) westCont.innerHTML = "<div style='opacity:0.5; padding:20px'>No Westbound trains</div>";
 
-                    if (eastTrains.length > 0) window.renderColumn("eastbound-container", eastTrains);
-                    else if (eastCont) eastCont.innerHTML = "<div style='opacity:0.5; padding:20px'>No Eastbound trains</div>";
-                }
+            if (typeof window.renderColumn === "function") {
+                window.renderColumn("westbound-container", westTrains);
+                window.renderColumn("eastbound-container", eastTrains);
             }
+
+            // Always run alert check (it now handles the 'Normal' state too)
+            await updateAlertBanner();
 
             if (liveDot) liveDot.classList.remove('stale');
             failureCount = 0; 
