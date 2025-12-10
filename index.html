@@ -43,56 +43,94 @@
         /* HEADER */
         .header-row {
             display: flex; justify-content: space-between; align-items: flex-start;
-            margin-bottom: 60px;
+            /* Changed margin to padding to prevent vertical collapse on some TV engines */
+            padding-bottom: 60px;
         }
-        .station-group { display: flex; flex-direction: column; gap: 30px; } /* Updated gap */
-        .station-name { font-size: 60px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+        
+        /* FIX: Replaced gap with margins for LG TV compatibility */
+        .station-group { display: flex; flex-direction: column; } 
+        .station-name { 
+            font-size: 60px; font-weight: 700; line-height: 1; letter-spacing: -1px; 
+            margin-bottom: 30px; /* Replaces gap: 30px */
+        }
+        
         .live-status {
             font-size: 28px; font-weight: 600; text-transform: uppercase;
             letter-spacing: 2px; color: var(--text-secondary);
-            display: flex; align-items: center; gap: 15px;
+            display: flex; align-items: center; 
+            /* gap: 15px removed */
         }
+        
         .live-dot {
             height: 14px; width: 14px; background-color: #00ff41;
             border-radius: 50%; box-shadow: 0 0 10px #00ff41;
+            margin-right: 15px; /* Replaces gap: 15px */
         }
         .live-dot.stale { background-color: #ffa500; box-shadow: 0 0 10px #ffa500; }
-        .time-group { text-align: right; display: flex; flex-direction: column; gap: 5px; }
-        .clock { font-size: 64px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+        
+        .time-group { text-align: right; display: flex; flex-direction: column; }
+        .clock { 
+            font-size: 64px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; 
+            margin-bottom: 5px; /* Replaces gap: 5px */
+        }
         .platform-info { font-size: 24px; font-weight: 500; opacity: 0.9; }
 
         /* CONTENT */
         .content-area {
-            display: flex; justify-content: space-between; gap: 100px;
+            display: flex; justify-content: space-between; 
+            /* gap: 100px removed */
             height: 700px; 
         }
-        .direction-column { flex: 1; display: flex; flex-direction: column; gap: 30px; }
-        .column-label { font-size: 32px; font-weight: 600; display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
-        .train-list { display: flex; flex-direction: column; gap: 25px; }
+        
+        .direction-column { 
+            flex: 1; 
+            display: flex; flex-direction: column; 
+            /* gap: 30px removed */
+        }
+        
+        /* Add spacing between the two main columns */
+        .direction-column:first-child { margin-right: 50px; }
+        .direction-column:last-child { margin-left: 50px; }
 
-        /* TRAIN CARD */
+        .column-label { 
+            font-size: 32px; font-weight: 600; display: flex; align-items: center; 
+            margin-bottom: 30px; /* Replaces gap: 30px (vertical) */
+        }
+        
+        /* Spacing for the arrows in column headers */
+        .column-label span { margin: 0 15px; } 
+
+        .train-list { 
+            display: flex; flex-direction: column; 
+            /* gap: 25px removed */
+        }
+        
+        /* Add margin to all cards except the last one to replace gap */
         .train-card {
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 24px;
-            /* Height remains 140px for 1080p scaling, but inner content matches */
             height: 140px; 
             width: 100%; padding: 0 30px 0 0;
             display: flex; align-items: center; justify-content: space-between;
             position: relative; overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            
+            margin-bottom: 25px; /* Replaces gap: 25px */
         }
+        
+        /* Remove margin from the very last card so it sits flush */
+        .train-card:last-child { margin-bottom: 0; }
+
         .line-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; border-radius: 0; }
         .line-red { background: var(--ct-red); }
         .line-blue { background: var(--ct-blue); }
         
         .dest-info { display: flex; flex-direction: column; justify-content: center; margin-left: 30px; }
-        /* Updated Fonts to match Jumbotron */
         .dest-name { font-size: 36px; font-weight: 700; line-height: 1.1; letter-spacing: -0.5px; }
         .line-name { font-size: 22px; font-weight: 500; opacity: 0.9; margin-top: 5px; }
         
         .arrival-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
-        /* Updated Fonts to match Jumbotron */
         .minutes { font-size: 34px; font-weight: 700; line-height: 1; }
         .minutes span { font-size: 20px; font-weight: 500; margin-left: 4px; }
         
@@ -108,7 +146,7 @@
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         /* ========================================
-           SERVICE FOOTER (UPDATED)
+           SERVICE FOOTER
            ======================================== */
         #service-footer {
             position: absolute; bottom: 0; left: 0; width: 100%; 
