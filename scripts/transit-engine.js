@@ -151,12 +151,14 @@ async function buildTrainList() {
         }
     }
 
+// Sort by time
     westTrains.sort((a, b) => a.minutes - b.minutes);
     eastTrains.sort((a, b) => a.minutes - b.minutes);
 
     return { 
-        westTrains: westTrains.slice(0, 3), 
-        eastTrains: eastTrains.slice(0, 3) 
+        // UPDATED: Allow 4 trains per column
+        westTrains: westTrains.slice(0, 4), 
+        eastTrains: eastTrains.slice(0, 4) 
     };
 }
 
@@ -219,3 +221,4 @@ async function startTransitDashboard() {
     update();
     setInterval(update, 30000); 
 }
+
