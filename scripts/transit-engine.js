@@ -23,7 +23,6 @@ function getSafeLong(val) {
 
 function calculateMinutes(eta, referenceTime) {
     const diff = eta - referenceTime;
-    // Filter: Allow trains that departed up to 90 seconds ago (buffer)
     if (diff < -90) return -1; 
     return Math.max(0, Math.round(diff / 60));
 }
@@ -56,25 +55,14 @@ async function updateAlertBanner() {
         let activeAlertMsg = "";
 
         if (feed && feed.entity) {
-            const alertEntity = feed.entity.find(e => {
-                const alert = e.alert;
-                if (!alert) return false;
-                
-                // HYBRID CHECK: Handle both informedEntity and informed_entity
-                const entities = alert.informedEntity || alert.informed_entity || [];
-                
-                return entities.some(ie => {
-                    const rId = ie.routeId || ie.route_id || "";
-                    return rId.includes('201') || rId.includes('202');
-                });
-            });
+            const alertEntity = feed.entity.find(e => 
+                e.alert && e.alert.informedEntity && e.alert.informedEntity.some(ie => 
+                    ie.routeId && (ie.routeId.includes('201') || ie.routeId.includes('202'))
+                )
+            );
 
-            if (alertEntity) {
-                const alert = alertEntity.alert;
-                const headerText = alert.headerText || alert.header_text;
-                if (headerText && headerText.translation && headerText.translation[0]) {
-                    activeAlertMsg = headerText.translation[0].text;
-                }
+            if (alertEntity && alertEntity.alert.headerText && alertEntity.alert.headerText.translation) {
+                activeAlertMsg = alertEntity.alert.headerText.translation[0].text;
             }
         }
 
@@ -114,42 +102,27 @@ async function buildTrainList() {
     const eastTrains = [];
     const processedTrips = new Set();
     
-    // DEBUG: Log the first entity to see structure
-    if (feed.entity.length > 0) {
-        console.log("🔍 Sample Entity:", feed.entity[0]);
-    }
-
     for (const entity of feed.entity) {
-        // HYBRID CHECK: Handle tripUpdate and trip_update
-        const tripUpdate = entity.tripUpdate || entity.trip_update;
-        if (!tripUpdate) continue;
+        if (!entity.tripUpdate || !entity.tripUpdate.stopTimeUpdate) continue;
 
-        const stopTimeUpdate = tripUpdate.stopTimeUpdate || tripUpdate.stop_time_update;
-        if (!stopTimeUpdate) continue;
-
-        const tripDescriptor = tripUpdate.trip;
-        // HYBRID CHECK: Handle tripId and trip_id
-        const tripId = tripDescriptor.tripId || tripDescriptor.trip_id;
+        const trip = entity.tripUpdate;
+        const tripId = trip.trip.tripId;
         
         if (processedTrips.has(tripId)) continue;
 
-        // HYBRID CHECK: Handle routeId and route_id
-        const routeId = tripDescriptor.routeId || tripDescriptor.route_id || "";
+        const routeId = trip.trip.routeId || "";
         if (!routeId.includes(ROUTE_RED) && !routeId.includes(ROUTE_BLUE)) continue;
 
         const lineColor = mapRouteColor(routeId);
 
-        for (const stopUpdate of stopTimeUpdate) {
-            // HYBRID CHECK: Handle stopId and stop_id
-            const stopId = stopUpdate.stopId || stopUpdate.stop_id;
+        for (const stopUpdate of trip.stopTimeUpdate) {
+            const stopId = stopUpdate.stopId;
             const arrival = stopUpdate.arrival || stopUpdate.departure; 
-            
             if (!arrival || !arrival.time) continue;
 
             const timeVal = getSafeLong(arrival.time);
             const minutes = calculateMinutes(timeVal, serverTime);
 
-            // STRICT FILTER: Only show trains arriving within 60 minutes
             if (minutes === -1 || minutes > 60) continue;
 
             if (stopId === STOP_CITY_HALL_WEST) {
@@ -182,9 +155,8 @@ async function buildTrainList() {
     eastTrains.sort((a, b) => a.minutes - b.minutes);
 
     return { 
-        // Allow up to 4 trains per column
-        westTrains: westTrains.slice(0, 4), 
-        eastTrains: eastTrains.slice(0, 4) 
+        westTrains: westTrains.slice(0, 3), 
+        eastTrains: eastTrains.slice(0, 3) 
     };
 }
 
@@ -193,7 +165,7 @@ async function buildTrainList() {
 // ==========================================
 
 async function startTransitDashboard() {
-    console.log("🚀 CLOCK-PROOF ENGINE v14 STARTED (HYBRID MODE)");
+    console.log("🚀 CLOCK-PROOF ENGINE v7 STARTED");
     
     let failureCount = 0;
 
@@ -208,17 +180,23 @@ async function startTransitDashboard() {
             const westCont = document.getElementById('westbound-container');
             const eastCont = document.getElementById('eastbound-container');
 
+            // --- UX FIX: EMPTY STATE ---
             if (westTrains.length === 0 && eastTrains.length === 0) {
+                 // Changed from "No trains found" to "Loading schedule..."
+                 // Added 'train-card' class so it looks beautiful (Glass UI)
                  const msg = `<div class="train-card" style="opacity:0.6; justify-content:center;">Loading schedule...</div>`;
+                 
                  if (westCont) westCont.innerHTML = msg;
                  if (eastCont) eastCont.innerHTML = msg;
             } else {
+                // Normal Render
                 if (typeof window.renderColumn === "function") {
                     window.renderColumn("westbound-container", westTrains);
                     window.renderColumn("eastbound-container", eastTrains);
                 }
             }
 
+            // Check Alerts
             await updateAlertBanner();
 
             if (liveDot) liveDot.classList.remove('stale');
@@ -228,6 +206,7 @@ async function startTransitDashboard() {
             console.error("Transit Engine Error:", e);
             failureCount++;
             if (failureCount >= 3) {
+                // This message also uses the card style now
                 const safeMessage = `<div class="train-card" style="opacity:0.6; justify-content:center;">Reconnecting...</div>`;
                 const westCont = document.getElementById('westbound-container');
                 const eastCont = document.getElementById('eastbound-container');
@@ -240,3 +219,4 @@ async function startTransitDashboard() {
     update();
     setInterval(update, 30000); 
 }
+
