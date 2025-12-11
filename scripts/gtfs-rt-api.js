@@ -6,6 +6,7 @@ const URL_ALERTS = "https://data.calgary.ca/download/jhgn-ynqj/application%2Foct
 // ==========================================
 // YOUR PRIVATE PROXY
 // ==========================================
+// I have added your specific worker URL here:
 const PROXY_BASE = "https://bvctransitproxy.creative-018.workers.dev/?url=";
 
 async function fetchGTFSRT(targetUrl) {
@@ -15,12 +16,8 @@ async function fetchGTFSRT(targetUrl) {
     const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
 
     try {
-        // --- CACHE BUSTER FIX ---
-        // This adds a random number (?cb=123456) to the URL.
-        // It forces the server to give us a NEW file, not an old cached one.
-        const uniqueUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + 'cb=' + Date.now();
-        
-        const fetchUrl = PROXY_BASE + encodeURIComponent(uniqueUrl);
+        // Construct the full URL: Proxy + Target
+        const fetchUrl = PROXY_BASE + encodeURIComponent(targetUrl);
         
         const response = await fetch(fetchUrl);
         
@@ -28,6 +25,7 @@ async function fetchGTFSRT(targetUrl) {
         
         const buffer = await response.arrayBuffer();
         
+        // Validation check
         if (buffer.byteLength < 100) {
             throw new Error("Data too short/corrupted");
         }
@@ -43,3 +41,4 @@ async function fetchGTFSRT(targetUrl) {
 
 async function getTripUpdates() { return fetchGTFSRT(URL_TRIP_UPDATES); }
 async function getVehiclePositions() { return fetchGTFSRT(URL_VEHICLE_POSITIONS); }
+
