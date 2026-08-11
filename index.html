@@ -137,6 +137,13 @@
             margin-top: 8px; display: inline-block;
         }
 
+        /* Scheduled (non-realtime) times: same shape, quieter treatment so the
+           board never implies live tracking it does not have. */
+        .status-badge.badge-scheduled {
+            background: rgba(0,0,0,0.18);
+            opacity: 0.75;
+        }
+
         .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
         @keyframes fadeIn { to { opacity: 1; } }
         .pulse-text { animation: pulse 1.5s infinite; }
@@ -183,13 +190,13 @@
             <div class="direction-column">
                 <div class="column-label"><span>⬅️</span> Westbound (Tuscany / 69 St)</div>
                 <div class="train-list" id="westbound-container">
-                    <div class="train-card" style="opacity:0.6; justify-content:center;">Loading schedule...</div>
+                    <div class="train-card" style="opacity:0.6; justify-content:center;">Loading departures…</div>
                 </div>
             </div>
             <div class="direction-column">
                 <div class="column-label">Eastbound (Saddletowne / Somerset) <span>➡️</span></div>
                 <div class="train-list" id="eastbound-container">
-                    <div class="train-card" style="opacity:0.6; justify-content:center;">Loading schedule...</div>
+                    <div class="train-card" style="opacity:0.6; justify-content:center;">Loading departures…</div>
                 </div>
             </div>
         </div>
@@ -199,10 +206,12 @@
         </footer>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    <script src="scripts/protobuf.min.js"></script>
+    
     <script src="scripts/proto-loader.js"></script>
     <script src="scripts/gtfs-rt-api.js"></script>
-    <script src="scripts/transit-engine.js"></script>
+    <script src="scripts/schedule-loader.js?v=17"></script>
+    <script src="scripts/transit-engine.js?v=17"></script>
 
     <script>
         // 1. CLOCK
@@ -250,7 +259,7 @@
                     </div>
                     <div class="arrival-info">
                         <div class="minutes ${pulse}">${timeText}${minLabel}</div>
-                        <div class="status-badge">${train.status}</div>
+                        <div class="status-badge${train.scheduled ? ' badge-scheduled' : ''}">${train.status}</div>
                     </div>
                 </div>
             `;
@@ -262,8 +271,10 @@
             if (!container) return;
 
             if (!trains || trains.length === 0) {
-                if (container.innerHTML.includes("No trains scheduled")) return;
-                container.innerHTML = `<div class="train-card" style="opacity:0.7; justify-content:center;">No trains scheduled</div>`;
+                // Guard string must match the message below, or the anti-flicker
+                // check silently stops working.
+                if (container.innerHTML.indexOf("No departures in the next hour") > -1) return;
+                container.innerHTML = `<div class="train-card" style="opacity:0.7; justify-content:center;">No departures in the next hour</div>`;
                 return;
             }
 
@@ -276,15 +287,27 @@
         };
 
         // 5. START
-        setTimeout(() => {
+        // A fixed 1000ms deadline was too tight for TV browsers: protobuf.min.js
+        // plus three engine scripts can take longer than a second to parse on
+        // WebOS/Tizen, which produced a false "Script Missing" error on screens
+        // that would have loaded fine a moment later. Poll instead, and only
+        // declare failure after a genuinely generous wait.
+        (function waitForEngine(attempts) {
+            attempts = attempts || 0;
             if (typeof startTransitDashboard === "function") {
                 startTransitDashboard();
-            } else { 
-                console.error("Engine script not found!"); 
-                document.getElementById('service-text').textContent = "System Error: Script Missing";
-                document.getElementById('service-footer').className = "status-alert";
+                return;
             }
-        }, 1000);
+            if (attempts >= 60) { // 60 x 250ms = 15 seconds
+                console.error("Engine script not found after 15s");
+                var t = document.getElementById('service-text');
+                var f = document.getElementById('service-footer');
+                if (t) t.textContent = "System Error: Script Missing";
+                if (f) f.className = "status-alert";
+                return;
+            }
+            setTimeout(function () { waitForEngine(attempts + 1); }, 250);
+        })();
     </script>
 </body>
 </html>
