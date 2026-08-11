@@ -206,7 +206,10 @@
         </footer>
     </div>
 
-    <script src="scripts/protobuf.min.js"></script>
+    <!-- Same CDN as the jumbotron build. The local scripts/protobuf.min.js
+         copy is no longer in this repo, which is what caused
+         "protobuf is not defined". -->
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
     
     <script src="scripts/proto-loader.js"></script>
     <script src="scripts/gtfs-rt-api.js"></script>
