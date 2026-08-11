@@ -296,12 +296,13 @@ function renderAlertBanner(alertMsg) {
 // ==========================================
 
 async function startTransitDashboard() {
-    console.log("🚀 TRANSIT ENGINE v9 — Instrumented");
+    console.log("🚀 TRANSIT ENGINE v11 — Realtime + scheduled fallback");
 
     const liveDot = document.getElementById('live-indicator');
 
-    // ── STEP 0: Warm the schedule fallback in the background ────────────────
-    if (typeof loadScheduleData === "function") loadScheduleData();
+    // Did the last render actually put trains on the board? Used to repair a
+    // board that came up empty because schedule.json had not loaded yet.
+    let lastRenderHadTrains = false;
 
     // ── STEP 1: Render cached data immediately, if it is fresh enough ─────────
     const FEED_MAX_AGE_S = 35;
@@ -388,6 +389,7 @@ async function startTransitDashboard() {
                 else liveDot.classList.add('stale');
             }
 
+            lastRenderHadTrains = (west.length + east.length) > 0;
             console.log((mode === "live" ? "✅ LIVE — " :
                          mode === "scheduled" ? "🗓️ SCHEDULED — " : "⚠️ UNAVAILABLE — ") +
                         west.length + "W / " + east.length + "E | feed: " +
@@ -398,6 +400,16 @@ async function startTransitDashboard() {
             console.error("Engine update error:", err);
             if (liveDot) liveDot.classList.add('stale');
         }
+    }
+
+    // ── STEP 3: Warm the schedule fallback ───────────────────────────────────
+    // schedule.json loads asynchronously, so the very first update() can run
+    // before it is ready. If that happened and the board came up empty, re-run
+    // update() the moment the schedule lands rather than waiting 30s.
+    if (typeof loadScheduleData === "function") {
+        loadScheduleData(function () {
+            if (!lastRenderHadTrains) update();
+        });
     }
 
     update();
