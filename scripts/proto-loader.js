@@ -1,13 +1,15 @@
-var GTFSRT_ROOT = null;
+let GTFSRT_ROOT = null;
 
-function loadGTFSRTProto() {
-    if (GTFSRT_ROOT) return Promise.resolve(GTFSRT_ROOT);
-    return protobuf.load("scripts/gtfs-realtime.proto").then(function(root) {
-        GTFSRT_ROOT = root;
-        console.log('✅ GTFS-RT Proto Loaded');
-        return root;
-    }).catch(function(e) {
-        console.error('❌ Failed to load proto:', e);
+async function loadGTFSRTProto() {
+    if (GTFSRT_ROOT) return GTFSRT_ROOT;
+
+    try {
+        // Updated path: look in the scripts folder
+        GTFSRT_ROOT = await protobuf.load("scripts/gtfs-realtime.proto");
+        console.log("✅ GTFS-RT Proto Loaded");
+        return GTFSRT_ROOT;
+    } catch (error) {
+        console.error("❌ Failed to load gtfs-realtime.proto:", error);
         return null;
-    });
+    }
 }
