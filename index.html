@@ -206,15 +206,11 @@
         </footer>
     </div>
 
-    <!-- Same CDN as the jumbotron build. The local scripts/protobuf.min.js
-         copy is no longer in this repo, which is what caused
-         "protobuf is not defined". -->
-    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
-    
-    <script src="scripts/proto-loader.js"></script>
-    <script src="scripts/gtfs-rt-api.js"></script>
-    <script src="scripts/schedule-loader.js?v=17"></script>
-    <script src="scripts/transit-engine.js?v=17"></script>
+    <!-- Standalone GTFS-RT decoder: no protobufjs, no CDN, no .proto file. -->
+    <script src="scripts/gtfs-decoder.js?v=18"></script>
+    <script src="scripts/gtfs-rt-api.js?v=18"></script>
+    <script src="scripts/schedule-loader.js?v=18"></script>
+    <script src="scripts/transit-engine.js?v=18"></script>
 
     <script>
         // 1. CLOCK
