@@ -207,10 +207,10 @@
     </div>
 
     <!-- Standalone GTFS-RT decoder: no protobufjs, no CDN, no .proto file. -->
-    <script src="scripts/gtfs-decoder.js?v=18"></script>
-    <script src="scripts/gtfs-rt-api.js?v=18"></script>
-    <script src="scripts/schedule-loader.js?v=18"></script>
-    <script src="scripts/transit-engine.js?v=18"></script>
+    <script src="scripts/gtfs-decoder.js?v=20"></script>
+    <script src="scripts/gtfs-rt-api.js?v=20"></script>
+    <script src="scripts/schedule-loader.js?v=20"></script>
+    <script src="scripts/transit-engine.js?v=20"></script>
 
     <script>
         // 1. CLOCK
@@ -226,21 +226,65 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // 2. AUTO-SCALE LOGIC (New!)
-        // This ensures the dashboard fits ANY screen (4K, Laptop, etc)
-        function fitToScreen() {
-            const wrapper = document.getElementById('dashboard');
-            const scaleX = window.innerWidth / 1920;
-            const scaleY = window.innerHeight / 1080;
-            const scale = Math.min(scaleX, scaleY); // Fit to smallest dimension
-
-            // Only scale if screen is NOT exactly 1920x1080
-            if (scale !== 1) {
-                wrapper.style.transform = `scale(${scale})`;
+        // 2. AUTO-SCALE LOGIC
+        // Fits the fixed 1920x1080 board to any screen.
+        //
+        // GUARDED: a signage player (Omnivex Ink, and embedded browsers
+        // generally) can report window.innerWidth/innerHeight as 0 before its
+        // layout settles. The previous version divided by 1920 regardless, got
+        // scale(0), and collapsed the entire board to a single point — leaving
+        // only the body gradient visible. That failure is engine-agnostic, so
+        // it hit Windows players and TVs alike while working in Chrome.
+        //
+        // Rule: never apply a transform unless the measurement is plausible.
+        function measureViewport() {
+            var w = window.innerWidth || 0;
+            var h = window.innerHeight || 0;
+            if (!w || !h) {
+                var de = document.documentElement;
+                if (de) { w = w || de.clientWidth || 0; h = h || de.clientHeight || 0; }
             }
+            if (!w || !h) {
+                var b = document.body;
+                if (b) { w = w || b.clientWidth || 0; h = h || b.clientHeight || 0; }
+            }
+            return [w, h];
         }
+
+        function fitToScreen() {
+            var wrapper = document.getElementById('dashboard');
+            if (!wrapper) return;
+
+            var vp = measureViewport();
+            var w = vp[0], h = vp[1];
+
+            // Implausible measurement: leave the board at its natural size
+            // rather than risk scaling it out of existence.
+            if (!(w > 320) || !(h > 240)) {
+                wrapper.style.transform = '';
+                console.warn('fitToScreen: viewport ' + w + 'x' + h + ' - scaling skipped');
+                return;
+            }
+
+            var scale = Math.min(w / 1920, h / 1080);
+            if (!isFinite(scale) || scale <= 0) {
+                wrapper.style.transform = '';
+                return;
+            }
+
+            wrapper.style.transform = (Math.abs(scale - 1) < 0.001)
+                ? '' : 'scale(' + scale + ')';
+            console.log('fitToScreen: viewport ' + w + 'x' + h + ' scale ' + scale.toFixed(3));
+        }
+
         window.addEventListener('resize', fitToScreen);
-        fitToScreen(); // Run once on startup
+        // Players often settle their viewport after first paint, so re-measure
+        // a few times rather than trusting the very first reading.
+        fitToScreen();
+        if (window.addEventListener) window.addEventListener('load', fitToScreen);
+        setTimeout(fitToScreen, 500);
+        setTimeout(fitToScreen, 1500);
+        setTimeout(fitToScreen, 3000);
 
         // 3. CARD HELPER
         window.createTrainCard = function(train, index) {
